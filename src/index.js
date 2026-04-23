@@ -67,9 +67,8 @@ app.post("/create", async (c) => {
         return c.text("Invalid JSON", 400);
     }
 });
-// --- PUBLIC ROUTES ---
 
-app.get("/:urlId", async (c) => {
+app.get("/read/:urlId", async (c) => {
     const kv = c.env.REDIRS;
     const id = c.req.param('urlId');
     const data = await kv.get(id);
@@ -78,44 +77,43 @@ app.get("/:urlId", async (c) => {
         return c.text("Key not found", 404);
     }
 
-    const obj = JSON.parse(data);
-   
-    // Log click data
-    let ip = c.req.header('cf-connecting-ip') || 'Unknown';
-    let latitude = c.req.raw.cf?.latitude ?? 'Unknown';
-    let longitude = c.req.raw.cf?.longitude ?? 'Unknown';
-    let country = c.req.raw.cf?.country ?? 'Unknown';
-    let city = c.req.raw.cf?.city ?? 'Unknown';
-    let region = c.req.raw.cf?.region ?? 'Unknown';
-    let postalCode = c.req.raw.cf?.postalCode ?? 'Unknown';
-    let isp = c.req.raw.headers.get('cf-asn') || 'Unknown';
+    return c.json(JSON.parse(data));
+});
+// --- PUBLIC ROUTES ---
 
-    if (ip === 'Unknown') {
-        try {
-            const response = await fetch(`https://ipapi.co/json/`);
-            const data = await response.json();
-            ip = data.ip || 'Unknown';
-        } catch (error) {
-            console.error('Failed to fetch IP data from ipapi:', error);
-        }
-    }
+app.get("/:urlId", async (c) => {
+    const kv = c.env.REDIRS;
+    const id = c.req.param('urlId');
+
+    const data = await kv.get(id);
+    if (!data) return c.text("Key not found", 404);
+
+    const obj = JSON.parse(data);
+
+    const cf = c.req.raw.cf || {};
 
     const clickData = {
-        IP: ip,
+        IP: c.req.header('cf-connecting-ip') || 'Unknown',
         timestamp: new Date().toISOString(),
         userAgent: c.req.header('user-agent') || 'Unknown',
-        latitude: latitude,
-        longitude: longitude,
-        Location: `${country}, ${city}, ${region}, ${postalCode}`,
-        ISP: isp
+        latitude: cf.latitude || 'Unknown',
+        longitude: cf.longitude || 'Unknown',
+        country: cf.country || 'Unknown',
+        city: cf.city || 'Unknown',
+        region: cf.region || 'Unknown',
+        postalCode: cf.postalCode || 'Unknown',
+        ISP: cf.asOrganization || 'Unknown'
     };
-    
-    // Update clicks array in KV
+
     obj.clicks = obj.clicks || [];
     obj.clicks.push(clickData);
+
     await kv.put(id, JSON.stringify(obj));
-    
-    const redirectUrl = obj.url.startsWith('http') ? obj.url : 'https://' + obj.url;
+
+    const redirectUrl = obj.url.startsWith('http')
+        ? obj.url
+        : 'https://' + obj.url;
+
     return c.redirect(redirectUrl, 302);
 });
 export default app;
