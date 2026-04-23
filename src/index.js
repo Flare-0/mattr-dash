@@ -115,5 +115,5 @@ app.get("/:urlId", async (c) => {
         : 'https://' + obj.url;
 
     return c.redirect(redirectUrl, 302);
-});
+}); 
 export default app;
