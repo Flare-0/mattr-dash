@@ -38,7 +38,19 @@ app.use("/delete/:urlId", async (c, next) => {
     }
     await next();
 });
+app.use("/read/:urlId", async (c, next) => {
+    if (!checkAuth(c)) {
+        return c.text("Unauthorized", 401);
+    }
+    await next();
+});
 
+app.use("/stats/:urlId", async (c, next) => {
+    if (!checkAuth(c)) {
+        return c.text("Unauthorized", 401);
+    }
+    await next();
+});
 
 // --- PROTECTED ROUTES ---
 
@@ -68,7 +80,7 @@ app.post("/create", async (c) => {
     }
 });
 
-app.get("/read/:urlId", async (c) => {
+app.get("/stats/:urlId", async (c) => {
     const kv = c.env.REDIRS;
     const id = c.req.param('urlId');
     const data = await kv.get(id);
@@ -77,7 +89,13 @@ app.get("/read/:urlId", async (c) => {
         return c.text("Key not found", 404);
     }
 
-    return c.json(JSON.parse(data));
+    const obj = JSON.parse(data);
+    return c.json({
+        id,
+        url: obj.url,
+        totalClicks: obj.clicks?.length || 0,
+        clicks: obj.clicks || []
+    });
 });
 // --- PUBLIC ROUTES ---
 
