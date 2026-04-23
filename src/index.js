@@ -79,15 +79,35 @@ app.get("/:urlId", async (c) => {
     }
 
     const obj = JSON.parse(data);
-    console.log(c.req)
+   
     // Log click data
+    let ip = c.req.header('cf-connecting-ip') || 'Unknown';
+    let latitude = c.req.raw.cf?.latitude ?? 'Unknown';
+    let longitude = c.req.raw.cf?.longitude ?? 'Unknown';
+    let country = c.req.raw.cf?.country ?? 'Unknown';
+    let city = c.req.raw.cf?.city ?? 'Unknown';
+    let region = c.req.raw.cf?.region ?? 'Unknown';
+    let postalCode = c.req.raw.cf?.postalCode ?? 'Unknown';
+    let isp = c.req.raw.headers.get('cf-asn') || 'Unknown';
+
+    if (ip === 'Unknown') {
+        try {
+            const response = await fetch(`https://ipapi.co/json/`);
+            const data = await response.json();
+            ip = data.ip || 'Unknown';
+        } catch (error) {
+            console.error('Failed to fetch IP data from ipapi:', error);
+        }
+    }
+
     const clickData = {
-        IP: c.req.raw.headers.get('cf-connecting-ip') || 'Unknown',
+        IP: ip,
         timestamp: new Date().toISOString(),
         userAgent: c.req.header('user-agent') || 'Unknown',
-        latitude: c.req.raw.cf?.latitude ?? 'Unknown',
-        longitude: c.req.raw.cf?.longitude ?? 'Unknown',
-        ISP: c.req.raw.headers.get('cf-asn') || 'Unknown'
+        latitude: latitude,
+        longitude: longitude,
+        Location: `${country}, ${city}, ${region}, ${postalCode}`,
+        ISP: isp
     };
     
     // Update clicks array in KV
@@ -98,16 +118,4 @@ app.get("/:urlId", async (c) => {
     const redirectUrl = obj.url.startsWith('http') ? obj.url : 'https://' + obj.url;
     return c.redirect(redirectUrl, 302);
 });
-const structureOfRedirs = {
-    "url": "antigravity.google",
-    "clicks": [
-        {
-            "IP": "192.168.1.1",
-            "timestamp": "2024-06-01T12:00:00Z",
-            "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.93 Safari/537.36",
-            "location": "New York, USA",
-            "ISP": "Example ISP"
-        }
-    ]
-}
 export default app;
