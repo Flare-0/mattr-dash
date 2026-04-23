@@ -97,6 +97,53 @@ app.get("/stats/:urlId", async (c) => {
         clicks: obj.clicks || []
     });
 });
+
+app.get("/read", async (c) => {
+    if (!checkAuth(c)) {
+        return c.text("Unauthorized", 401);
+    }
+
+    const kv = c.env.REDIRS;
+    const cursor = c.req.query("cursor") || undefined;
+    const limitStr = c.req.query("limit");
+    let limit = 10;
+    if (limitStr) {
+        const parsed = parseInt(limitStr);
+        if (!isNaN(parsed) && parsed > 0) {
+            limit = parsed;
+        }
+    }
+
+    const listResult = await kv.list({ cursor, limit: limit + 1 });
+
+    const hasMore = listResult.keys.length > limit;
+    let nextCursor = '';
+    if (hasMore && listResult.list_metadata?.cursor) {
+        nextCursor = String(listResult.list_metadata.cursor);
+    }
+    
+    const keys = listResult.keys.slice(0, limit);
+
+    const urlItems = await Promise.all(
+        keys.map(async ({ name: id }) => {
+            const data = await kv.get(id);
+            if (!data) return { id, url: null, clicks: [] };
+
+            try {
+                const parsed = JSON.parse(data);
+                return { 
+                    id, 
+                    url: parsed.url || null,
+                    clicks: parsed.clicks || []
+                };
+            } catch {
+                return { id, url: null, clicks: [] };
+            }
+        })
+    );
+
+    return c.json({ items: urlItems, cursor: nextCursor, hasMore }, 200);
+});
 // --- PUBLIC ROUTES ---
 
 app.get("/:urlId", async (c) => {
