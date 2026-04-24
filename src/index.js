@@ -7,8 +7,32 @@ import { cors } from "hono/cors";
 
 const app = new Hono();
 app.use("*", cors());
-// 1. AUTH MIDDLEWARE: This runs before any route matching the pattern
-// Helper function to check auth
+
+const RATE_LIMIT_WINDOW = 60;
+const RATE_LIMIT_MAX = 10;
+
+const rateLimits = new Map();
+
+const checkRateLimit = (c) => {
+    const ip = c.req.header('cf-connecting-ip') || c.req.header('x-forwarded-for') || 'unknown';
+    const now = Date.now();
+    const windowStart = now - RATE_LIMIT_WINDOW * 1000;
+    
+    const userLimits = rateLimits.get(ip) || { count: 0, windowStart };
+    
+    if (now - userLimits.windowStart > RATE_LIMIT_WINDOW * 1000) {
+        rateLimits.set(ip, { count: 1, windowStart: now });
+        return true;
+    }
+    
+    if (userLimits.count >= RATE_LIMIT_MAX) {
+        return false;
+    }
+    
+    rateLimits.set(ip, { count: userLimits.count + 1, windowStart: userLimits.windowStart });
+    return true;
+};
+
 const checkAuth = (c) => {
     const secret = c.req.header("X-Auth-Key");
     const apiKey = c.env.API_KEY;
@@ -52,7 +76,27 @@ app.use("/stats/:urlId", async (c, next) => {
     await next();
 });
 
-// --- PROTECTED ROUTES ---
+// --- PUBLIC ROUTES ---
+
+app.get("/auth/verify", async (c) => {
+    if (!checkRateLimit(c)) {
+        return c.json({ error: "Rate limit exceeded" }, 429);
+    }
+
+    const secret = c.req.header("X-Auth-Key");
+    const apiKey = c.env.API_KEY;
+
+    if (!apiKey) {
+        return c.json({ valid: false, error: "API_KEY not configured" }, 200);
+    }
+
+    if (!secret) {
+        return c.json({ valid: false, error: "Missing X-Auth-Key header" }, 200);
+    }
+
+    const isValid = secret === apiKey;
+    return c.json({ valid: isValid }, 200);
+});
 
 app.get("/delete/:urlId", async (c) => {
     const id = c.req.param('urlId');

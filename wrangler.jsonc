@@ -7,6 +7,12 @@
 	"name": "dev",
 	"main": "src/index.js",
 	"compatibility_date": "2026-04-22",
+	"routes": [
+		{
+			"pattern": "dev.mattr.art",
+			"zone_name": "mattr.art"
+		}
+	],
 	"observability": {
 		"enabled": true
 	},
