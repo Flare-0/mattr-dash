@@ -58,7 +58,7 @@ protectedRoutes.use("*", async (c, next) => {
     await next();
 });
 
-app.route("/", protectedRoutes);
+app.route("/api", protectedRoutes);
 
 // --- MANAGED ROUTES ---
 
