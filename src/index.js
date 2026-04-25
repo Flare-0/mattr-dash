@@ -97,15 +97,11 @@ protectedRoutes.post("/create", async (c) => {
     }
 });
 
-protectedRoutes.get("/stats/:urlId", async (c) => {
+protectedRoutes.get("/read/:urlId", async (c) => {
     const kv = c.env.REDIRS;
     const id = c.req.param('urlId');
     const data = await kv.get(id);
-
-    if (!data) {
-        return c.text("Key not found", 404);
-    }
-
+    if (!data) return c.text("Key not found", 404);
     const obj = JSON.parse(data);
     return c.json({
         id,
