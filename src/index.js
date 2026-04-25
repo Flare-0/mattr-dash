@@ -60,6 +60,13 @@ protectedRoutes.use("*", async (c, next) => {
 
 app.route("/api", protectedRoutes);
 
+// --- /api/verify ---
+protectedRoutes.get("/verify", async (c) => {
+    const secret = c.req.header("X-Auth-Key");
+    const apiKey = c.env.API_KEY;
+    return c.json({ valid: secret === apiKey && secret != null });
+});
+
 // --- MANAGED ROUTES ---
 
 protectedRoutes.delete("/:urlId", async (c) => {
@@ -152,14 +159,6 @@ protectedRoutes.get("/read", async (c) => {
     );
 
     return c.json({ items: urlItems, cursor: nextCursor, hasMore }, 200);
-});
-protectedRoutes.get("/read/:urlId", async (c) => {
-    const kv = c.env.REDIRS;
-    const id = c.req.param('urlId');
-    const data = await kv.get(id);
-    if (!data) return c.text("Key not found", 404);
-    const obj = JSON.parse(data);
-    return c.json({ url: obj.url, clicks: obj.clicks || [] });
 });
 // --- PUBLIC ROUTES ---
 
