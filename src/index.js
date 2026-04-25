@@ -60,8 +60,8 @@ protectedRoutes.use("*", async (c, next) => {
 
 app.route("/api", protectedRoutes);
 
-// --- /api/verify ---
-protectedRoutes.get("/verify", async (c) => {
+// --- PUBLIC /api/verify ---
+app.get("/api/verify", async (c) => {
     const secret = c.req.header("X-Auth-Key");
     const apiKey = c.env.API_KEY;
     return c.json({ valid: secret === apiKey && secret != null });
